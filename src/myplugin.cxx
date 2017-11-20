@@ -114,7 +114,11 @@ static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsig
             pd->result[pd->length_result]= g_strdup_printf("%lf <span size='small'>(%s)</span>", result,*input);
             pd->result[pd->length_result+1] = NULL;
             pd->length_result++;
-        } catch ( ... ) {
+        } catch ( mu::ParserError e ) {
+            pd->result = (gchar **)g_realloc ( pd->result, (pd->length_result+2)*sizeof(gchar*));
+            pd->result[pd->length_result]= g_markup_printf_escaped ( "<span color='red'>%s</span>",e.GetMsg().c_str());
+            pd->result[pd->length_result+1] = NULL;
+            pd->length_result++;
 
         }
     }
