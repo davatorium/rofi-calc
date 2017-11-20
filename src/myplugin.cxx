@@ -54,15 +54,25 @@ typedef struct
     unsigned int length_result;
     mu::Parser *p;
     value_type ans;
+    value_type afValBuf[100];
+    int iVal;
 } MYPLUGINModePrivateData;
 
 
 static void get_rofi_calc (  Mode *sw )
 {
-    /** 
+    /**
      * Get the entries to display.
      * this gets called on plugin initialization.
      */
+}
+value_type* AddVariable(const char_type *a_szName, void *ud)
+{
+    MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData*)ud;
+    if (pd->iVal>=99)
+        throw mu::ParserError( ("Variable buffer overflow.") );
+    else
+        return &(pd->afValBuf[pd->iVal++]);
 }
 
 
@@ -77,6 +87,7 @@ static int rofi_calc_mode_init ( Mode *sw )
         pd->ans = 0;
         pd->p->DefineVar ( "ans", &(pd->ans));
         pd->p->DefineConst("pi", (double)M_PI);
+        pd->p->SetVarFactory(AddVariable, pd);
         mode_set_private_data ( sw, (void *) pd );
         // Load content.
         get_rofi_calc ( sw );
@@ -86,7 +97,7 @@ static int rofi_calc_mode_init ( Mode *sw )
 static unsigned int rofi_calc_mode_get_num_entries ( const Mode *sw )
 {
     const MYPLUGINModePrivateData *pd = (const MYPLUGINModePrivateData *) mode_get_private_data ( sw );
-    return pd->length_result; 
+    return pd->length_result;
 }
 
 static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsigned int selected_line )
@@ -98,13 +109,13 @@ static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsig
             pd->p->SetExpr(*input);
             auto result = pd->p->Eval();
             pd->ans = result;
-            
+
             pd->result = (gchar **)g_realloc ( pd->result, (pd->length_result+2)*sizeof(gchar*));
             pd->result[pd->length_result]= g_strdup_printf("%lf <span size='small'>(%s)</span>", result,*input);
             pd->result[pd->length_result+1] = NULL;
             pd->length_result++;
         } catch ( ... ) {
-        
+
         }
     }
     if ( mretv & MENU_NEXT ) {
@@ -150,7 +161,7 @@ static char *_get_display_value ( const Mode *sw, unsigned int selected_line, in
         }
     }
     // Only return the string if requested, otherwise only set state.
-    return get_entry ? g_strdup("n/a"): NULL; 
+    return get_entry ? g_strdup("n/a"): NULL;
 }
 
 /**
