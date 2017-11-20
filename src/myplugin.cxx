@@ -42,7 +42,7 @@
 using namespace mu;
 
 typedef struct {
-    char *result;
+    value_type result;
     char *value;
 } MYPLUGINModeEntry;
 /**
@@ -50,7 +50,7 @@ typedef struct {
  */
 typedef struct
 {
-    gchar **result;
+    MYPLUGINModeEntry *result;
     unsigned int length_result;
     mu::Parser *p;
     value_type ans;
@@ -110,14 +110,14 @@ static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsig
             auto result = pd->p->Eval();
             pd->ans = result;
 
-            pd->result = (gchar **)g_realloc ( pd->result, (pd->length_result+2)*sizeof(gchar*));
-            pd->result[pd->length_result]= g_strdup_printf("%lf <span size='small'>(%s)</span>", result,*input);
-            pd->result[pd->length_result+1] = NULL;
+            pd->result = (MYPLUGINModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(MYPLUGINModeEntry));
+            pd->result[pd->length_result].result = result;
+            pd->result[pd->length_result].value  = g_strdup ( *input );
             pd->length_result++;
         } catch ( mu::ParserError e ) {
-            pd->result = (gchar **)g_realloc ( pd->result, (pd->length_result+2)*sizeof(gchar*));
-            pd->result[pd->length_result]= g_markup_printf_escaped ( "<span color='red'>%s</span>",e.GetMsg().c_str());
-            pd->result[pd->length_result+1] = NULL;
+            pd->result = (MYPLUGINModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(MYPLUGINModeEntry));
+            pd->result[pd->length_result].value = g_strdup_printf("<span color='red'>%s</span>", e.GetMsg().c_str());
+            pd->result[pd->length_result].result = 0;
             pd->length_result++;
 
         }
@@ -145,7 +145,10 @@ static void rofi_calc_mode_destroy ( Mode *sw )
         delete pd->p;
         pd->p = nullptr;
         if ( pd->result ) {
-            g_strfreev(pd->result);
+            for ( unsigned int i = 0; i < pd->length_result; i++ ){
+                g_free (pd->result[i].value);
+            }
+            g_free ( pd->result );
         }
         g_free ( pd );
         mode_set_private_data ( sw, NULL );
@@ -161,7 +164,8 @@ static char *_get_display_value ( const Mode *sw, unsigned int selected_line, in
 
     if ( get_entry ) {
         if ( pd->result ) {
-            return g_strdup ( pd->result[pd->length_result-selected_line-1] );
+            MYPLUGINModeEntry *e = &(pd->result[pd->length_result-selected_line-1]);
+            return g_strdup_printf ( "%e <span size='small'>(%s)</span>",e->result, e->value );
         }
     }
     // Only return the string if requested, otherwise only set state.
