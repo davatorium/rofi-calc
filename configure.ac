@@ -1,4 +1,4 @@
-AC_INIT([rofi-plugin-template], [0.0.1], [https://my-neat-plugin.org//],[],[https://support.my-neat-plugin.org/])
+AC_INIT([rofi-calc], [0.0.1], [https://my-neat-plugin.org//],[],[https://support.my-neat-plugin.org/])
 
 AC_CONFIG_HEADER([config.h])
 
@@ -14,18 +14,9 @@ AM_SILENT_RULES([yes])
 dnl ---------------------------------------------------------------------
 dnl  Check for compiler
 dnl ---------------------------------------------------------------------
-AC_PROG_CC([clang gcc cc])
+AC_PROG_CXX([clang++ g++ c++])
 
-dnl ---------------------------------------------------------------------
-dnl  C99 standard
-dnl ---------------------------------------------------------------------
-AC_PROG_CC_C99
-
-dnl ---------------------------------------------------------------------
-dnl C to Object rules.
-dnl ---------------------------------------------------------------------
-AM_PROG_CC_C_O
-
+AX_CXX_COMPILE_STDCXX_11
 dnl ---------------------------------------------------------------------
 dnl System extensions
 dnl ---------------------------------------------------------------------
@@ -51,7 +42,7 @@ PKG_PROG_PKG_CONFIG
 dnl ---------------------------------------------------------------------
 dnl PKG_CONFIG based dependencies  
 dnl ---------------------------------------------------------------------
-PKG_CHECK_MODULES([glib],     [glib-2.0 >= 2.40 gio-unix-2.0 gmodule-2.0 ])
+PKG_CHECK_MODULES([glib],     [glib-2.0 >= 2.40 gio-unix-2.0 gmodule-2.0 muparser])
 PKG_CHECK_MODULES([rofi],     [rofi])
 
 LT_INIT([disable-static])

@@ -1,11 +1,11 @@
 ACLOCAL_AMFLAGS=-I m4
 plugindir=${libdir}/rofi/
 
-plugin_LTLIBRARIES = myplugin.la
+plugin_LTLIBRARIES = rofi_calc.la
 
-myplugin_la_SOURCES=\
-		 src/myplugin.c
+rofi_calc_la_SOURCES=\
+	src/myplugin.cxx
 
-myplugin_la_CFLAGS= @glib_CFLAGS@ @rofi_CFLAGS@
-myplugin_la_LIBADD= @glib_LIBS@ @rofi_LIBS@
-myplugin_la_LDFLAGS= -module -avoid-version
+rofi_calc_la_CXXFLAGS= @glib_CFLAGS@ @rofi_CFLAGS@
+rofi_calc_la_LIBADD= @glib_LIBS@ @rofi_LIBS@
+rofi_calc_la_LDFLAGS= -module -avoid-version

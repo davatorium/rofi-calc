@@ -1,5 +1,5 @@
 /**
- * rofi-plugin-template
+ * rofi-calc
  *
  * MIT/X11 License
  * Copyright (c) 2017 Qball Cow <qball@gmpclient.org>
@@ -36,19 +36,28 @@
 
 #include <stdint.h>
 
-G_MODULE_EXPORT Mode mode;
+#include <muParser.h>
+#include <math.h>
 
+using namespace mu;
+
+typedef struct {
+    char *result;
+    char *value;
+} MYPLUGINModeEntry;
 /**
  * The internal data structure holding the private data of the TEST Mode.
  */
 typedef struct
 {
-    char **array;
-    unsigned int array_length;
+    gchar **result;
+    unsigned int length_result;
+    mu::Parser *p;
+    value_type ans;
 } MYPLUGINModePrivateData;
 
 
-static void get_myplugin (  Mode *sw )
+static void get_rofi_calc (  Mode *sw )
 {
     /** 
      * Get the entries to display.
@@ -57,56 +66,89 @@ static void get_myplugin (  Mode *sw )
 }
 
 
-static int myplugin_mode_init ( Mode *sw )
+static int rofi_calc_mode_init ( Mode *sw )
 {
     /**
      * Called on startup when enabled (in modi list)
      */
     if ( mode_get_private_data ( sw ) == NULL ) {
-        MYPLUGINModePrivateData *pd = g_malloc0 ( sizeof ( *pd ) );
+        MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData*)g_malloc0 ( sizeof ( *pd ) );
+        pd->p = new mu::Parser();
+        pd->ans = 0;
+        pd->p->DefineVar ( "ans", &(pd->ans));
+        pd->p->DefineConst("pi", (double)M_PI);
         mode_set_private_data ( sw, (void *) pd );
         // Load content.
-        get_myplugin ( sw );
+        get_rofi_calc ( sw );
     }
     return TRUE;
 }
-static unsigned int myplugin_mode_get_num_entries ( const Mode *sw )
+static unsigned int rofi_calc_mode_get_num_entries ( const Mode *sw )
 {
     const MYPLUGINModePrivateData *pd = (const MYPLUGINModePrivateData *) mode_get_private_data ( sw );
-    return pd->array_length;
+    return pd->length_result; 
 }
 
-static ModeMode myplugin_mode_result ( Mode *sw, int mretv, char **input, unsigned int selected_line )
+static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsigned int selected_line )
 {
     ModeMode           retv  = MODE_EXIT;
     MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    if ( input ) {
+        try {
+            pd->p->SetExpr(*input);
+            auto result = pd->p->Eval();
+            pd->ans = result;
+            
+            pd->result = (gchar **)g_realloc ( pd->result, (pd->length_result+2)*sizeof(gchar*));
+            pd->result[pd->length_result]= g_strdup_printf("%lf <span size='small'>(%s)</span>", result,*input);
+            pd->result[pd->length_result+1] = NULL;
+            pd->length_result++;
+        } catch ( ... ) {
+        
+        }
+    }
     if ( mretv & MENU_NEXT ) {
         retv = NEXT_DIALOG;
     } else if ( mretv & MENU_PREVIOUS ) {
         retv = PREVIOUS_DIALOG;
     } else if ( mretv & MENU_QUICK_SWITCH ) {
-        retv = ( mretv & MENU_LOWER_MASK );
+        retv = (ModeMode)( mretv & MENU_LOWER_MASK );
     } else if ( ( mretv & MENU_OK ) ) {
-        retv = RELOAD_DIALOG;
+        retv = RESET_DIALOG;
+    } else if ( ( mretv & MENU_CUSTOM_INPUT ) ) {
+        retv = RESET_DIALOG;
     } else if ( ( mretv & MENU_ENTRY_DELETE ) == MENU_ENTRY_DELETE ) {
         retv = RELOAD_DIALOG;
     }
     return retv;
 }
 
-static void myplugin_mode_destroy ( Mode *sw )
+static void rofi_calc_mode_destroy ( Mode *sw )
 {
     MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
     if ( pd != NULL ) {
+        delete pd->p;
+        pd->p = nullptr;
+        if ( pd->result ) {
+            g_strfreev(pd->result);
+        }
         g_free ( pd );
         mode_set_private_data ( sw, NULL );
     }
 }
 
-static char *_get_display_value ( const Mode *sw, unsigned int selected_line, G_GNUC_UNUSED int *state, G_GNUC_UNUSED GList **attr_list, int get_entry )
+static char *_get_display_value ( const Mode *sw, unsigned int selected_line, int *state, G_GNUC_UNUSED GList **attr_list, int get_entry )
 {
     MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    if ( state ) {
+        (*state) |= 8;
+    }
 
+    if ( get_entry ) {
+        if ( pd->result ) {
+            return g_strdup ( pd->result[pd->length_result-selected_line-1] );
+        }
+    }
     // Only return the string if requested, otherwise only set state.
     return get_entry ? g_strdup("n/a"): NULL; 
 }
@@ -118,31 +160,33 @@ static char *_get_display_value ( const Mode *sw, unsigned int selected_line, G_
  *
  * Match the entry.
  *
- * @param returns try when a match.
+ * @param returns true when a match.
  */
-static int myplugin_token_match ( const Mode *sw, rofi_int_matcher **tokens, unsigned int index )
+static int rofi_calc_token_match ( const Mode *sw, rofi_int_matcher **tokens, unsigned int index )
 {
     MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
 
     // Call default matching function.
-    return helper_token_match ( tokens, pd->array[index]);
+    return TRUE;//helper_token_match ( tokens, pd->array[index]);
 }
 
 
-Mode mode =
-{
+Mode mode = {
     .abi_version        = ABI_VERSION,
-    .name               = "myplugin",
-    .cfg_name_key       = "display-myplugin",
-    ._init              = myplugin_mode_init,
-    ._get_num_entries   = myplugin_mode_get_num_entries,
-    ._result            = myplugin_mode_result,
-    ._destroy           = myplugin_mode_destroy,
-    ._token_match       = myplugin_token_match,
+    .name               = (char*)"calc",
+    .cfg_name_key       =  {'d','i','s','p','l','a','y','-','m', 'y','p','l','u','g','i', 'n', 0},//"display-rofi_calc",
+    .display_name       = NULL,
+    ._init              = rofi_calc_mode_init,
+    ._destroy           = rofi_calc_mode_destroy,
+    ._get_num_entries   = rofi_calc_mode_get_num_entries,
+    ._result            = rofi_calc_mode_result,
+    ._token_match       = rofi_calc_token_match,
     ._get_display_value = _get_display_value,
-    ._get_message       = NULL,
+    ._get_icon          = NULL,
     ._get_completion    = NULL,
     ._preprocess_input  = NULL,
+    ._get_message       = NULL,
     .private_data       = NULL,
     .free               = NULL,
+    .ed                 = NULL,
 };
