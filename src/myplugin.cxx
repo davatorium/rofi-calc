@@ -23,6 +23,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -44,19 +45,20 @@ using namespace mu;
 typedef struct {
     value_type result;
     char *value;
-} MYPLUGINModeEntry;
+} CALCModeEntry;
+
 /**
  * The internal data structure holding the private data of the TEST Mode.
  */
 typedef struct
 {
-    MYPLUGINModeEntry *result;
+    CALCModeEntry *result;
     unsigned int length_result;
     mu::Parser *p;
     value_type ans;
     value_type afValBuf[100];
     int iVal;
-} MYPLUGINModePrivateData;
+} CALCModePrivateData;
 
 
 static void get_rofi_calc (  Mode *sw )
@@ -68,12 +70,48 @@ static void get_rofi_calc (  Mode *sw )
 }
 value_type* AddVariable(const char_type *a_szName, void *ud)
 {
-    MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData*)ud;
+    CALCModePrivateData *pd = (CALCModePrivateData*)ud;
     if (pd->iVal>=99)
         throw mu::ParserError( ("Variable buffer overflow.") );
     else
         return &(pd->afValBuf[pd->iVal++]);
 }
+
+
+static int IsHexValue(const char_type *a_szExpr, int *a_iPos, value_type *a_fVal) 
+{ 
+    if (a_szExpr[1]==0 || (a_szExpr[0]!='0' || a_szExpr[1]!='x') ) 
+        return 0;
+
+    unsigned iVal(0);
+
+    // New code based on streams for UNICODE compliance:
+    stringstream_type::pos_type nPos(0);
+    stringstream_type ss(a_szExpr + 2);
+    ss >> std::hex >> iVal;
+    nPos = ss.tellg();
+
+    if (nPos==(stringstream_type::pos_type)0)
+        return 1;
+
+    *a_iPos += (int)(2 + nPos);
+    *a_fVal = (value_type)iVal;
+
+    return 1;
+}
+// SI
+const value_type kilob = 1024;
+const value_type megab = 1024*1024;
+const value_type gigab = 1024*1024*1024;
+const value_type terab = gigab*1024; 
+static value_type kilo ( value_type val ) { return 1000*val; }
+static value_type mega ( value_type val ) { return 1000*1000*val; }
+static value_type giga ( value_type val ) { return 1000*1000*1000*val; }
+
+static value_type kilobyte(value_type val) { return kilob*val; }
+static value_type megabyte (value_type val) { return megab*val; }
+static value_type gigabyte (value_type val) { return gigab*val; }
+static value_type terabyte (value_type val) { return terab*val; }
 
 
 static int rofi_calc_mode_init ( Mode *sw )
@@ -82,12 +120,24 @@ static int rofi_calc_mode_init ( Mode *sw )
      * Called on startup when enabled (in modi list)
      */
     if ( mode_get_private_data ( sw ) == NULL ) {
-        MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData*)g_malloc0 ( sizeof ( *pd ) );
+        CALCModePrivateData *pd = (CALCModePrivateData*)g_malloc0 ( sizeof ( *pd ) );
         pd->p = new mu::Parser();
         pd->ans = 0;
         pd->p->DefineVar ( "ans", &(pd->ans));
         pd->p->DefineConst("pi", (double)M_PI);
+        pd->p->AddValIdent(IsHexValue);
         pd->p->SetVarFactory(AddVariable, pd);
+
+        pd->p->DefineOprtChars("mkgbtMGx");
+        pd->p->DefinePostfixOprt("kb", kilobyte);
+        pd->p->DefinePostfixOprt("mb", megabyte);
+        pd->p->DefinePostfixOprt("gb", gigabyte);
+        pd->p->DefinePostfixOprt("tb", terabyte);
+
+        // SI
+        pd->p->DefinePostfixOprt("k", kilo);
+        pd->p->DefinePostfixOprt("M", mega);
+        pd->p->DefinePostfixOprt("G", giga);
         mode_set_private_data ( sw, (void *) pd );
         // Load content.
         get_rofi_calc ( sw );
@@ -96,26 +146,26 @@ static int rofi_calc_mode_init ( Mode *sw )
 }
 static unsigned int rofi_calc_mode_get_num_entries ( const Mode *sw )
 {
-    const MYPLUGINModePrivateData *pd = (const MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    const CALCModePrivateData *pd = (const CALCModePrivateData *) mode_get_private_data ( sw );
     return pd->length_result;
 }
 
 static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsigned int selected_line )
 {
     ModeMode           retv  = MODE_EXIT;
-    MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
     if ( input ) {
         try {
             pd->p->SetExpr(*input);
             auto result = pd->p->Eval();
             pd->ans = result;
 
-            pd->result = (MYPLUGINModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(MYPLUGINModeEntry));
+            pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
             pd->result[pd->length_result].result = result;
             pd->result[pd->length_result].value  = g_strdup ( *input );
             pd->length_result++;
         } catch ( mu::ParserError e ) {
-            pd->result = (MYPLUGINModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(MYPLUGINModeEntry));
+            pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
             pd->result[pd->length_result].value = g_strdup_printf("<span color='red'>%s</span>", e.GetMsg().c_str());
             pd->result[pd->length_result].result = 0;
             pd->length_result++;
@@ -140,7 +190,7 @@ static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsig
 
 static void rofi_calc_mode_destroy ( Mode *sw )
 {
-    MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
     if ( pd != NULL ) {
         delete pd->p;
         pd->p = nullptr;
@@ -155,16 +205,25 @@ static void rofi_calc_mode_destroy ( Mode *sw )
     }
 }
 
-static char *_get_display_value ( const Mode *sw, unsigned int selected_line, int *state, G_GNUC_UNUSED GList **attr_list, int get_entry )
+static char *_get_display_value (
+        const Mode *sw,
+        unsigned int selected_line,
+        int *state,
+        G_GNUC_UNUSED GList **attr_list,
+        int get_entry )
 {
-    MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
     if ( state ) {
         (*state) |= 8;
     }
 
     if ( get_entry ) {
         if ( pd->result ) {
-            MYPLUGINModeEntry *e = &(pd->result[pd->length_result-selected_line-1]);
+            CALCModeEntry *e = &(pd->result[pd->length_result-selected_line-1]);
+            value_type res = fmod(e->result,1);
+            if ( abs(res) < 1e-90 ){
+                return g_strdup_printf ( "%ld <span size='small'>(%s)</span>",(int64_t)(e->result), e->value );
+            }
             return g_strdup_printf ( "%e <span size='small'>(%s)</span>",e->result, e->value );
         }
     }
@@ -183,17 +242,17 @@ static char *_get_display_value ( const Mode *sw, unsigned int selected_line, in
  */
 static int rofi_calc_token_match ( const Mode *sw, rofi_int_matcher **tokens, unsigned int index )
 {
-    MYPLUGINModePrivateData *pd = (MYPLUGINModePrivateData *) mode_get_private_data ( sw );
+    CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
 
     // Call default matching function.
-    return TRUE;//helper_token_match ( tokens, pd->array[index]);
+    return TRUE;
 }
 
 
 Mode mode = {
     .abi_version        = ABI_VERSION,
     .name               = (char*)"calc",
-    .cfg_name_key       =  {'d','i','s','p','l','a','y','-','m', 'y','p','l','u','g','i', 'n', 0},//"display-rofi_calc",
+    .cfg_name_key       =  {'d','i','s','p','l','a','y','-','c', 'a','l','c', 0},
     .display_name       = NULL,
     ._init              = rofi_calc_mode_init,
     ._destroy           = rofi_calc_mode_destroy,
