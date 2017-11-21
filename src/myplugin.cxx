@@ -226,6 +226,16 @@ static void rofi_calc_mode_destroy ( Mode *sw )
     }
 }
 
+static char *rofi_calc_get_completion ( const Mode *sw, unsigned int index )
+{
+    CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
+    if ( pd->result ) {
+        CALCModeEntry *e = &(pd->result[pd->length_result-index-1]);
+        return g_strdup(e->value);
+    }
+    return NULL;
+}
+
 static char *_get_display_value (
         const Mode *sw,
         unsigned int selected_line,
@@ -282,7 +292,7 @@ Mode mode = {
     ._token_match       = rofi_calc_token_match,
     ._get_display_value = _get_display_value,
     ._get_icon          = NULL,
-    ._get_completion    = NULL,
+    ._get_completion    = rofi_calc_get_completion,
     ._preprocess_input  = NULL,
     ._get_message       = NULL,
     .private_data       = NULL,
