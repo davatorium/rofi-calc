@@ -83,7 +83,7 @@ static int IsHexValue(const char_type *a_szExpr, int *a_iPos, value_type *a_fVal
     if (a_szExpr[1]==0 || (a_szExpr[0]!='0' || a_szExpr[1]!='x') ) 
         return 0;
 
-    unsigned iVal(0);
+    uint64_t iVal(0);
 
     // New code based on streams for UNICODE compliance:
     stringstream_type::pos_type nPos(0);
@@ -157,7 +157,7 @@ static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsig
     if ( input ) {
         try {
             pd->p->SetExpr(*input);
-            auto result = pd->p->Eval();
+            value_type result = pd->p->Eval();
             pd->ans = result;
 
             pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
@@ -193,7 +193,7 @@ static void rofi_calc_mode_destroy ( Mode *sw )
     CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
     if ( pd != NULL ) {
         delete pd->p;
-        pd->p = nullptr;
+        pd->p = NULL;
         if ( pd->result ) {
             for ( unsigned int i = 0; i < pd->length_result; i++ ){
                 g_free (pd->result[i].value);
@@ -222,9 +222,9 @@ static char *_get_display_value (
             CALCModeEntry *e = &(pd->result[pd->length_result-selected_line-1]);
             value_type res = fmod(e->result,1);
             if ( abs(res) < 1e-90 ){
-                return g_strdup_printf ( "%ld <span size='small'>(%s)</span>",(int64_t)(e->result), e->value );
+                return g_strdup_printf ( "%ld\t<span size='small'>(%s)</span>",(int64_t)(e->result), e->value );
             }
-            return g_strdup_printf ( "%e <span size='small'>(%s)</span>",e->result, e->value );
+            return g_strdup_printf ( "%e\t<span size='small'>(%s)</span>",e->result, e->value );
         }
     }
     // Only return the string if requested, otherwise only set state.
