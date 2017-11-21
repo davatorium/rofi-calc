@@ -154,21 +154,42 @@ static ModeMode rofi_calc_mode_result ( Mode *sw, int mretv, char **input, unsig
 {
     ModeMode           retv  = MODE_EXIT;
     CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
-    if ( input ) {
-        try {
-            pd->p->SetExpr(*input);
-            value_type result = pd->p->Eval();
-            pd->ans = result;
+    if ( (mretv&(MENU_OK|MENU_CUSTOM_INPUT))){
+        if ( input && strlen(*input) > 0 ) {
+            try {
+                pd->p->SetExpr(*input);
+                value_type result = pd->p->Eval();
+                pd->ans = result;
 
-            pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
-            pd->result[pd->length_result].result = result;
-            pd->result[pd->length_result].value  = g_strdup ( *input );
-            pd->length_result++;
-        } catch ( mu::ParserError e ) {
-            pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
-            pd->result[pd->length_result].value = g_strdup_printf("<span color='red'>%s</span>", e.GetMsg().c_str());
-            pd->result[pd->length_result].result = 0;
-            pd->length_result++;
+                pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
+                pd->result[pd->length_result].result = result;
+                pd->result[pd->length_result].value  = g_strdup ( *input );
+                pd->length_result++;
+            } catch ( mu::ParserError e ) {
+                pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
+                pd->result[pd->length_result].value = g_strdup_printf("<span color='red'>%s</span>", e.GetMsg().c_str());
+                pd->result[pd->length_result].result = 0;
+                pd->length_result++;
+
+            }
+        } else if ( selected_line < pd->length_result ) {
+            try {
+                char *str = pd->result[pd->length_result-1-selected_line].value;
+                pd->p->SetExpr(str);
+                value_type result = pd->p->Eval();
+                pd->ans = result;
+
+                pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
+                pd->result[pd->length_result].result = result;
+                pd->result[pd->length_result].value  = g_strdup ( str );
+                pd->length_result++;
+            } catch ( mu::ParserError e ) {
+                pd->result = (CALCModeEntry*)g_realloc ( pd->result, (pd->length_result+1)*sizeof(CALCModeEntry));
+                pd->result[pd->length_result].value = g_strdup_printf("<span color='red'>%s</span>", e.GetMsg().c_str());
+                pd->result[pd->length_result].result = 0;
+                pd->length_result++;
+
+            }
 
         }
     }
