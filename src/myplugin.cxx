@@ -78,9 +78,9 @@ value_type* AddVariable(const char_type *a_szName, void *ud)
 }
 
 
-static int IsHexValue(const char_type *a_szExpr, int *a_iPos, value_type *a_fVal) 
-{ 
-    if (a_szExpr[1]==0 || (a_szExpr[0]!='0' || a_szExpr[1]!='x') ) 
+static int IsHexValue(const char_type *a_szExpr, int *a_iPos, value_type *a_fVal)
+{
+    if (a_szExpr[1]==0 || (a_szExpr[0]!='0' || a_szExpr[1]!='x') )
         return 0;
 
     uint64_t iVal(0);
@@ -103,7 +103,7 @@ static int IsHexValue(const char_type *a_szExpr, int *a_iPos, value_type *a_fVal
 const value_type kilob = 1024;
 const value_type megab = 1024*1024;
 const value_type gigab = 1024*1024*1024;
-const value_type terab = gigab*1024; 
+const value_type terab = gigab*1024;
 static value_type kilo ( value_type val ) { return 1000*val; }
 static value_type mega ( value_type val ) { return 1000*1000*val; }
 static value_type giga ( value_type val ) { return 1000*1000*1000*val; }
@@ -279,6 +279,23 @@ static int rofi_calc_token_match ( const Mode *sw, rofi_int_matcher **tokens, un
     return TRUE;
 }
 
+static char * rofi_calc_get_message ( const Mode *sw )
+{
+    CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
+    bool pos = pd->ans < 0 ? false:true;
+    uint64_t val = (uint64_t)(abs(pd->ans));
+    char *str = g_format_size_full ( val, G_FORMAT_SIZE_LONG_FORMAT );
+
+    char *str_res = g_markup_printf_escaped (
+            "<b>Size:</b>\t%c%s\n"\
+            "<b>Hex:</b>\t%c0x%lX",
+                pos?' ':'-',str,
+                pos?' ':'-',val );
+
+    g_free ( str );
+    return str_res;
+}
+
 
 Mode mode = {
     .abi_version        = ABI_VERSION,
@@ -294,7 +311,7 @@ Mode mode = {
     ._get_icon          = NULL,
     ._get_completion    = rofi_calc_get_completion,
     ._preprocess_input  = NULL,
-    ._get_message       = NULL,
+    ._get_message       = rofi_calc_get_message,
     .private_data       = NULL,
     .free               = NULL,
     .ed                 = NULL,
