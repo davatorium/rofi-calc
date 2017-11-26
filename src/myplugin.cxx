@@ -284,7 +284,7 @@ static char * rofi_calc_get_message ( const Mode *sw )
     CALCModePrivateData *pd = (CALCModePrivateData *) mode_get_private_data ( sw );
     bool pos = pd->ans < 0 ? false:true;
     uint64_t val = (uint64_t)(abs(pd->ans));
-    char *str = g_format_size_full ( val, G_FORMAT_SIZE_LONG_FORMAT );
+    char *str = g_format_size_full ( val, (GFormatSizeFlags)(G_FORMAT_SIZE_LONG_FORMAT|G_FORMAT_SIZE_IEC_UNITS));
 
     char *str_res = g_markup_printf_escaped (
             "<b>Size:</b>\t%c%s\n"\
