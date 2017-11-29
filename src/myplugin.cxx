@@ -286,11 +286,24 @@ static char * rofi_calc_get_message ( const Mode *sw )
     uint64_t val = (uint64_t)(abs(pd->ans));
     char *str = g_format_size_full ( val, (GFormatSizeFlags)(G_FORMAT_SIZE_LONG_FORMAT|G_FORMAT_SIZE_IEC_UNITS));
 
+    char binary[128] = {0,};
+    uint64_t sv = val;
+    for ( int j = 0,i = 0; i < 32; i++,j++ ){
+        binary[38-j] = (sv&1)?'1':'0'; 
+        if (j%5 == 3){
+            binary[++j] = ' ';
+        }
+
+        sv >>=1;
+    }
+
     char *str_res = g_markup_printf_escaped (
             "<b>Size:</b>\t%c%s\n"\
-            "<b>Hex:</b>\t%c0x%lX",
+            "<b>Hex:</b>\t%c0x%lX\n"\
+            "<b>Bin:</b> \t %s",
                 pos?' ':'-',str,
-                pos?' ':'-',val );
+                pos?' ':'-',val,
+                binary);
 
     g_free ( str );
     return str_res;
